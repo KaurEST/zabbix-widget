@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Coop Locations Lookup</title>
+  <style>
+    :root{
+      --bg:#0b1020;/* deep navy */
+      --card:#121938;/* slightly lighter */
+      --muted:#8ea0ff;
+      --text:#e6e9ff;
+      --text-dim:#a9b2e8;
+      --accent:#5b7cff;
+      --accent-2:#35d1ff;
+      --ring: 0 0 0 3px rgba(91,124,255,.25);
+      --radius:18px;
+    }
+    *{box-sizing:border-box}
+    html,body{margin:0;height:100%;background:radial-gradient(1200px 600px at 10% -10%,rgba(53,209,255,.08),transparent 60%),
+                             radial-gradient(1200px 600px at 110% 10%,rgba(91,124,255,.10),transparent 60%), var(--bg);
+               color:var(--text);font:16px/1.45 system-ui, -apple-system, Segoe UI, Roboto, Inter, Arial, "Apple Color Emoji","Segoe UI Emoji"}
+    .wrap{max-width:1100px;margin:5px auto;padding:0 20px}
+    .title{font-size:clamp(26px,2.5vw,34px);font-weight:800;letter-spacing:.2px;margin:0 0 6px}
+    .subtitle{color:var(--text-dim);margin:0 0 22px}
+
+    .panel{background:linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.03));
+           border:1px solid rgba(255,255,255,.10);border-radius:var(--radius);padding:16px;box-shadow:0 8px 28px rgba(0,0,0,.25)}
+
+    .controls{display:flex;gap:10px;flex-wrap:wrap}
+    .search{position:relative;flex:1 1 360px}
+    .search input{width:100%;padding:14px 44px 14px 44px;border-radius:12px;border:1px solid rgba(255,255,255,.16);
+                  background:rgba(14,18,38,.7);color:var(--text);outline:none}
+    .search input:focus{box-shadow:var(--ring);border-color:rgba(91,124,255,.55)}
+    .search .icon{position:absolute;left:14px;top:50%;transform:translateY(-50%);opacity:.8}
+    .count{padding:12px 14px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);
+           border-radius:12px;white-space:nowrap}
+
+    table{width:100%;border-collapse:separate;border-spacing:0;margin-top:14px}
+    thead th{position:sticky;top:0;background:rgba(12,18,40,.9);backdrop-filter:blur(8px);text-align:left;font-weight:700;
+             border-bottom:1px solid rgba(255,255,255,.12);padding:12px;border-top-left-radius:12px;border-top-right-radius:12px}
+    tbody tr{transition:background .15s ease}
+    tbody tr:hover{background:rgba(255,255,255,.04)}
+    td{padding:12px;border-bottom:1px dashed rgba(255,255,255,.08);vertical-align:top}
+    .code{font-family:ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+          font-weight:600;color:var(--muted)}
+
+    .muted{color:var(--text-dim)}
+
+    .footer{margin-top:14px;color:var(--text-dim);font-size:13px}
+    .pill{display:inline-block;padding:4px 10px;border:1px solid rgba(255,255,255,.12);border-radius:999px;margin-left:8px}
+
+    @media (prefers-color-scheme: light){
+      :root{--bg:#f6f8ff;--card:#ffffff;--text:#0b1020;--text-dim:#4f5b8a}
+      body{background:radial-gradient(1200px 600px at 10% -10%,rgba(53,209,255,.10),transparent 60%),
+                      radial-gradient(1200px 600px at 110% 10%,rgba(91,124,255,.15),transparent 60%), var(--bg)}
+      .panel{background:#fff}
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1 class="title">Kaupluste otsing</h1>
+    <p class="subtitle">Sisesta kaupluse kood või kaupluse nimi.</p>
+
+    <div class="panel">
+      <div class="controls">
+        <div class="search">
+          <svg class="icon" width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path d="M21 21l-4.3-4.3" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="1.8"/></svg>
+          <input id="q" type="search" placeholder="Search… (e.g. h01, Konsum, Tartu)" autocomplete="off" />
+        </div>
+        <div class="count"><span id="count">0</span> shown <span class="muted">/ <span id="total">0</span> total</span></div>
+      </div>
+
+      <table aria-label="Locations table">
+        <thead>
+          <tr>
+            <th style="width:160px">Kaupluse kood</th>
+            <th>Nimi</th>
+          </tr>
+        </thead>
+        <tbody id="rows"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <script>
+    const data = [
+      ["h01","Paide Maksimarket"],
+      ["h02","Paide Kaubamaja"],
+      ["h04","Paide Konsum"],
+      ["h05","Tyri Konsum"],
+      ["h06","J2rva-Jaani Konsum / Ehituskeskus"],
+      ["h09","Paide Ehitustarbed / Ehituskeskus"],
+      ["h10","Tyri Kaubamaja"],
+      ["h11","Tyri Ehitustarbed / Ehituskeskus"],
+      ["h14","Kalevi Konsum"],
+      ["h19","V22tsa kauplus"],
+      ["h20","Aravete kauplus"],
+      ["h21","Roosna-Alliku kauplus"],
+      ["h22","2mbra kauplus"],
+      ["h23","Koigi kauplus"],
+      ["h24","Imavere kauplus"],
+      ["h27","S2revere kauplus"],
+      ["h28","Kabala kauplus"],
+      ["h34","J2neda kauplus"],
+      ["h39","P2inurme kauplus"],
+      ["h48","Koeru Konsum - Ehituskeskus"],
+      ["h52","Kunda Konsum - Ehituskeskus"],
+      ["h53","Kadrina Konsum - Ehituskeskus"],
+      ["h54","Kivi6li Konsum"],
+      ["h55","Pyssi kauplus - Ehituskeskus"],
+      ["h56","Laekvere kauplus"],
+      ["h57","Simuna kauplus"],
+      ["h59","Oisu kauplus"],
+      ["h61","J6hvi Konsum"],
+      ["h62","Kohtla-J2rve Konsum"],
+      ["h65","S6meru kauplus"],
+      ["h66","Rakvere Maksimarket"],
+      ["h67","Rakvere T88riistamarket"],
+      ["h76","Tartu T88riistamarket"],
+      ["h77","Narva Maksimarket"],
+      ["h79","Tapa Konsum / Ehituskeskus"],
+      ["h80","Linnam2e Konsum"],
+      ["h81","V2ike-Maarja Konsum / Ehituskeskus"],
+      ["h82","J6hvi T88riistamarket"],
+      ["h83","Sillam2e Maksimarket"],
+      ["h85","J6hvi Maksimarket"],
+      ["h86","Narva-J6esuu Konsum"],
+      ["h89","Tallinna t88riistamarket Peterburi tee"],
+      ["t41","Kaubaait kauplus"],
+      ["t06","Liiva Konsum"],
+      ["t07","Orissaare Konsum"],
+      ["t02","Tooma Konsum"],
+      ["t12","Ranna kauplus"],
+      ["t08","Valjala kauplus"],
+      ["t03","Saaremaa Kaubamaja"],
+      ["t19","Salme kauplus"],
+      ["t25","K2rla kauplus"],
+      ["t28","Leisi kauplus"],
+      ["t18","Nasva kauplus"],
+      ["t40","Port Artur Konsum"],
+      ["t09","Kummeli Coop"],
+      ["u28","Tartu L6unakeskuse Maksimarket"],
+      ["u02","Eedeni Maksimarket"],
+      ["u01","Ujula Konsum"],
+      ["u16","Melliste kauplus"],
+      ["u22","Karete Konsum"],
+      ["u23","Kivilinna Konsum"],
+      ["u27","Lembitu Konsum"],
+      ["u29","Kivi Konsum"],
+      ["u39","M6isavahe Konsum"],
+      ["u40","Raadim6isa Konsum"],
+      ["u30","Kvartali Maksimarket"],
+      ["u31","Ihaste Konsum"],
+      ["u41","Alatskivi Konsum"],
+      ["u10","Kvissentali Konsum"],
+      ["u25","Kaasiku Konsum"],
+      ["u26","Maarjam6isa Konsum"],
+      ["a02","Karksi-Nuia Konsum"],
+      ["a08","Abja Konsum"],
+      ["c01","K2o kauplus"],
+      ["c20","N6o Konsum"],
+      ["c22","Otep22 Konsum"],
+      ["c28","Elva Konsum"],
+      ["c32","Arbim2e Konsum"],
+      ["c04","Elva Ehituskeskus"],
+      ["c33","Kambja Konsum"],
+      ["c36","R6ngu Konsum"],
+      ["d08","Risti kauplus"],
+      ["d02","Haapsalu Kaubamaja Konsum"],
+      ["d11","Vanalinna kauplus"],
+      ["d12","Linnam2e kauplus"],
+      ["d13","Uuem6isa Konsum"],
+      ["e16","Kuusalu Konsum"],
+      ["e18","Loksa Konsum"],
+      ["e07","Kiili Konsum"],
+      ["e05","Jyri Konsum"],
+      ["e03","Arukyla Konsum"],
+      ["e10","Kehra Konsum"],
+      ["e13","Haabneeme Konsum"],
+      ["e09","Raasiku Konsum"],
+      ["e01","Aegviidu kauplus"],
+      ["e21","Rohuneeme Konsum"],
+      ["e22","Kose Konsum"],
+      ["e23","Saku Konsum"],
+      ["e24","S6pruse Konsum"],
+      ["e25","Paldiski Konsum"],
+      ["e28","Lasnam2e Maksimarket"],
+      ["e29","Laagri Maksimarket"],
+      ["e31","Raudalu Konsum"],
+      ["e32","Mustakivi Konsum"],
+      ["e33","Akadeemia Konsum"],
+      ["e26","Miiduranna Konsum"],
+      ["e27","Muraste Konsum"],
+      ["e30","P2rnu Maksimarket"],
+      ["e35","Teatri minimarket"],
+      ["f05","Emmaste kauplus"],
+      ["f04","K2ina Konsum"],
+      ["f03","K6rgessaare kauplus"],
+      ["f02","Hiiu Konsum"],
+      ["f01","Tormi Konsum"],
+      ["g01","J6geva Konsum (kaubahall)"],
+      ["g05","Pae Konsum"],
+      ["g27","Sadala kauplus"],
+      ["g15","Palamuse kauplus"],
+      ["g13","Pala kauplus"],
+      ["g18","Saadj2rve kauplus"],
+      ["g32","Torma kauplus"],
+      ["g34","Mustvee Konsum"],
+      ["g36","Avinurme Konsum"],
+      ["g03","Puurmani konsum"],
+      ["k15","H22demeeste Konsum"],
+      ["k16","Tammiste Konsum"],
+      ["m01","Lihula Konsum"],
+      ["m02","Virtsu Konsum"],
+      ["m05","Kullamaa kauplus"],
+      ["p22","Kanepi kauplus"],
+      ["p34","R2pina Konsum"],
+      ["p49","Ylenurme Konsum"],
+      ["p02","EDU Keskuse Konsum"],
+      ["p60","P6lva Maksimarket"],
+      ["p59","T6rvandi Konsum"],
+      ["p63","M2rja Konsum"],
+      ["p65","Kylitse Konsum"],
+      ["r29","Jaama Konsum / Ehituskeskus"],
+      ["r25","Kohila Konsum"],
+      ["r23","Kandi Konsum"],
+      ["r09","Kehtna kauplus"],
+      ["r20","Kaiu kauplus"],
+      ["r28","Rapla Konsum"],
+      ["r31","M2rjamaa Konsum / Ehituskeskus"],
+      ["v03","T6rva Konsum"],
+      ["v05","T6rvik Konsum"],
+      ["v24","Valga (Siili) Konsum"],
+      ["v25","Tikste Konsum / Ehituskeskus"],
+      ["v26","Kungla konsum"],
+      ["w16","Viljandi Maksimarket"],
+      ["w27","Vastem6isa kauplus"],
+      ["w11","Suure-Jaani Konsum"],
+      ["w34","M2nnim2e Konsum"],
+      ["w39","Mustla Konsum"],
+      ["x02","Kesklinna Konsum"],
+      ["x31","Vastseliina Konsum"],
+      ["x39","V6ru Maksimarket"],
+      ["x48","Kose kauplus"],
+      ["x50","Peetri Konsum"],
+      ["z13","Tiina Konsum"],
+      ["z02","V2ndra Konsum"],
+      ["z04","Tootsi Konsum"],
+      ["z06","Tori Konsum"],
+      ["z12","Sindi Konsum"],
+      ["z14","Sauga Konsum"],
+      ["z15","Paikuse Konsum"],
+      ["test","Testmasin"],
+      ["ct1","CoopTest"],
+      ["d10","Taebla Kauplus"],
+      ["x37","R6uge Konsum"],
+      ["t22","Kihelkonna Kauplus"],
+      ["k01","Kilingi-N6mme Konsum"],
+      ["s01","Antsla Konsum"],
+      ["s02","Tare Kauplus"],
+      ["s03","M6niste Kauplus"],
+      ["w36","Turu Konsum"]
+    ].sort((a,b)=>a[0].localeCompare(b[0]));
+
+    const rowsEl = document.getElementById('rows');
+    const qEl = document.getElementById('q');
+    const countEl = document.getElementById('count');
+    const totalEl = document.getElementById('total');
+
+    function render(list){
+      rowsEl.innerHTML = list.map(([code,name])=>`<tr><td class="code">${code}</td><td>${name}</td></tr>`).join('');
+      countEl.textContent = list.length;
+    }
+
+    function normalize(s){
+      return s.toLowerCase().normalize('NFKD');
+    }
+
+    function filter(){
+      const q = normalize(qEl.value.trim());
+      if(!q){ render(data); return; }
+      const parts = q.split(/\s+/).filter(Boolean);
+      const filtered = data.filter(([code,name])=>{
+        const hay = normalize(code+" "+name);
+        return parts.every(p=>hay.includes(p));
+      });
+      render(filtered);
+    }
+
+    // init
+    totalEl.textContent = data.length;
+    render(data);
+
+    // events (with a small debounce)
+    let t;
+    qEl.addEventListener('input', ()=>{ clearTimeout(t); t=setTimeout(filter, 80); });
+    // focus search on load
+    window.addEventListener('load', ()=> qEl.focus());
+  </script>
+</body>
+</html>
